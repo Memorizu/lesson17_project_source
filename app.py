@@ -26,24 +26,6 @@ class Movie(db.Model):
     director = db.relationship("Director")
 
 
-class Director(db.Model):
-    __tablename__ = 'director'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255))
-
-
-class Genre(db.Model):
-    __tablename__ = 'genre'
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(255))
-
-
-# namespaces
-movie_ns = api.namespace('movies')
-director_ns = api.namespace('directors')
-genre_ns = api.namespace('genres')
-
-
 class MovieSchema(Schema):
     id = fields.Int()
     title = fields.Str()
@@ -59,19 +41,60 @@ movie_schema = MovieSchema()
 movies_schema = MovieSchema(many=True)
 
 
+class Director(db.Model):
+    __tablename__ = 'director'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255))
+
+
+class DirectorSchema(Schema):
+    id = fields.Int()
+    name = fields.Str()
+
+
+director_schema = DirectorSchema()
+directors_schema = DirectorSchema(many=True)
+
+
+class Genre(db.Model):
+    __tablename__ = 'genre'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(255))
+
+
+class GenreSchema(Schema):
+    id = fields.Int()
+    name = fields.Str()
+
+
+genre_schema = GenreSchema()
+genres_schema = GenreSchema(many=True)
+
+
+# namespaces
+movie_ns = api.namespace('movies')
+director_ns = api.namespace('directors')
+genre_ns = api.namespace('genres')
+
+
+################# Movie
+
 @movie_ns.route('/')
 class MoviesBased(Resource):
 
     def get(self):
-        req = Movie.query
-        director_id = request.args.get('director_id')
-        genre_id = request.args.get('genre_id')
-        if director_id:
-            req = req.filter(director_id == Movie.director_id)
-        if genre_id:
-            req = req.filter(genre_id == Movie.genre_id)
-        movies = req.all()
-        return movies_schema.dump(movies)
+        try:
+            req = Movie.query
+            director_id = request.args.get('director_id')
+            genre_id = request.args.get('genre_id')
+            if director_id:
+                req = req.filter(director_id == Movie.director_id)
+            if genre_id:
+                req = req.filter(genre_id == Movie.genre_id)
+            movies = req.all()
+            return movies_schema.dump(movies)
+        except Exception as e:
+            return e
 
     def post(self):
         req = request.json
@@ -112,6 +135,86 @@ class MoviesBased(Resource):
         db.session.delete(movie)
         db.session.commit()
         return '', 204
+
+
+############## Director
+@director_ns.route('/')
+class DirectorBased(Resource):
+
+    def get(self):
+        req = Director.query.all()
+        return directors_schema.dump(req)
+
+    def post(self):
+        director = request.json
+        new_director = Director(**director)
+        db.session.add(new_director)
+        db.session.commit()
+        return '', 201
+
+
+@director_ns.route('/<int:did>')
+class DirectorBased(Resource):
+
+    def get(self, did):
+        director = Director.query.get(did)
+        return director_schema.dump(director)
+
+    def put(self, did):
+        req = request.json
+        director = Director.query.get(did)
+
+        director.id = req.get('id')
+        director.name = req.get('name')
+        db.session.add(director)
+        db.session.commit()
+        return '', 201
+
+    def delete(self, did):
+        director = Director.query.get(did)
+        db.session.delete(director)
+        db.session.commit()
+        return '', 201
+
+
+############## genres
+@genre_ns.route('/')
+class GenreBased(Resource):
+
+    def get(self):
+        genre = Genre.query.all()
+        return genres_schema.dump(genre), 200
+
+    def post(self):
+        req = request.json
+        new_genre = Genre(**req)
+        db.session.add(new_genre)
+        db.session.commit()
+        return '', 201
+
+
+@genre_ns.route('/<int:gid>')
+class GenreBased(Resource):
+
+    def get(self, gid):
+        genre = Genre.query.get(gid)
+        return genre_schema.dump(genre), 200
+
+    def put(self, gid):
+        req = request.json
+        genre = Genre.query.get(gid)
+        genre.id = req.get('id')
+        genre.name = req.get('name')
+        db.session.add(genre)
+        db.session.commit()
+        return '', 204
+
+    def delete(self, gid):
+        genre = Genre.query.get(gid)
+        db.session.delete(genre)
+        db.session.commit()
+        return '', 201
+
 
 if __name__ == '__main__':
     app.run(debug=True)
